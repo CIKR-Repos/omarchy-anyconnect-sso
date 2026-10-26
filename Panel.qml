@@ -18,6 +18,7 @@ Panel {
   property string vpnState: "disconnected"
   property string server: ""
   property string group: ""
+  property string name: ""
   property var missing: []
   property string message: ""
   property bool failed: false
@@ -64,6 +65,7 @@ Panel {
   }
 
   function startEdit() {
+    nameField.text = name
     serverField.text = server
     groupOptions = group !== "" ? [group] : []
     groupDropdown.value = group
@@ -71,7 +73,7 @@ Panel {
     groupsNote = ""
     editing = true
     if (!opened) open()
-    Qt.callLater(function() { serverField.forceActiveFocus() })
+    Qt.callLater(function() { nameField.forceActiveFocus() })
   }
 
   function loadGroups() {
@@ -83,7 +85,7 @@ Panel {
   }
 
   function saveSettings() {
-    run(["configure", serverField.text.trim(), groupOptions.length > 0 ? groupDropdown.value : ""])
+    run(["configure", serverField.text.trim(), groupOptions.length > 0 ? groupDropdown.value : "", nameField.text.trim()])
     editing = false
   }
 
@@ -122,6 +124,7 @@ Panel {
         root.vpnState = s.state || "disconnected"
         root.server = s.server || ""
         root.group = s.group || ""
+        root.name = s.name || ""
         root.missing = s.missing || []
       }
     }
@@ -208,7 +211,7 @@ Panel {
         PanelHero {
           id: hero
           width: parent.width
-          title: root.configured ? (root.group !== "" ? root.group : root.server) : "VPN"
+          title: root.name !== "" ? root.name : "VPN"
           meta: root.metaText
           foreground: root.foreground
           fontFamily: root.fontFamily
@@ -230,17 +233,6 @@ Panel {
               onToggled: root.toggleVpn()
             }
           }
-        }
-
-        Text {
-          visible: root.configured && !root.editing
-          width: parent.width
-          text: root.server
-          textFormat: Text.PlainText
-          color: root.dim
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
-          elide: Text.ElideRight
         }
 
         Text {
@@ -306,6 +298,22 @@ Panel {
           spacing: Style.space(8)
 
           PanelSeparator { width: parent.width }
+
+          Text {
+            text: "Name"
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          TextField {
+            id: nameField
+            width: parent.width
+            placeholderText: "Work VPN"
+            foreground: root.foreground
+            font.family: root.fontFamily
+            Keys.onEscapePressed: root.editing = false
+          }
 
           Text {
             text: "Server"

@@ -35,7 +35,7 @@ omarchy pkg add networkmanager-openconnect webkit2gtk-4.1 python-gobject
 ## Use
 
 1. Click the shield icon in the bar, then **Set up**.
-2. Enter your VPN server (for example `vpn.example.com`) and click
+2. Give the connection a name (shown in the panel), enter your VPN server (for example `vpn.example.com`) and click
    **Load groups**. The widget asks the server for its group list.
 3. Pick your group and click **Save**. If the server has no group list, there's
    nothing to pick and the server chooses for you. If your company gave you a

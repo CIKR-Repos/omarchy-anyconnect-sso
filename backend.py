@@ -10,7 +10,7 @@ resulting token for a VPN session, then hands the session to NetworkManager
 
   backend.py status                      JSON: state, server, group, missing packages
   backend.py groups <server>             JSON: the gateway's group list
-  backend.py configure <server> <group>  save settings
+  backend.py configure <server> <group> [name]  save settings
   backend.py connect                     sign in and bring the tunnel up
   backend.py disconnect                  take the tunnel down
 
@@ -239,6 +239,7 @@ def cmd_status():
         "state": vpn_state() if shutil.which("nmcli") else "disconnected",
         "server": config.get("server", ""),
         "group": config.get("group", ""),
+        "name": config.get("name", ""),
         "missing": missing_packages(),
     }))
 
@@ -259,13 +260,13 @@ def cmd_groups(server):
     return 0
 
 
-def cmd_configure(server, group):
+def cmd_configure(server, group, name=""):
     server = normalize_server(server)
     if not server:
         say("ERROR", "Enter the VPN server address")
         return 1
     with open(CONFIG, "w") as f:
-        json.dump({"server": server, "group": group.strip()}, f, indent=2)
+        json.dump({"server": server, "group": group.strip(), "name": name.strip()}, f, indent=2)
     if shutil.which("nmcli") and not ensure_profile(server):
         say("ERROR", "Saved, but the NetworkManager profile could not be updated")
         return 1
@@ -346,7 +347,7 @@ def main(argv):
         return cmd_status()
     if cmd == "groups" and len(args) == 1:
         return cmd_groups(args[0])
-    if cmd == "configure" and len(args) == 2:
+    if cmd == "configure" and len(args) in (2, 3):
         return cmd_configure(*args)
     if cmd == "connect":
         return cmd_connect()
