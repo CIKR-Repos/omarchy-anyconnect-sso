@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "cikr-repos.anyconnect-sso",
+  "name": "AnyConnect SSO",
+  "version": "0.1.0",
+  "author": "CIKR",
+  "license": "MIT",
+  "description": "Cisco AnyConnect VPN with SAML single sign-on (Microsoft Entra, Okta, Duo) and MFA, from the bar.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "AnyConnect SSO",
+    "description": "Connect to a Cisco AnyConnect VPN with SAML sign-in (Microsoft, Okta, …) and MFA.",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
