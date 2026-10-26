@@ -4,6 +4,8 @@ A bar widget for Cisco AnyConnect / Secure Client VPNs that sign in through
 **SAML single sign-on** (Microsoft Entra ID, Okta, Duo, …) with MFA, including
 gateways that offer a **group** dropdown.
 
+![AnyConnect SSO panel](preview.png)
+
 ## Why this exists
 
 Many Cisco ASA / FTD gateways only allow SAML sign-in through the Cisco
