@@ -54,9 +54,36 @@ def say(kind, text):
     print(kind, text, flush=True)
 
 
+# Sign-in hosts that name no organisation; any other host (the gateway, a company's
+# own identity provider) is replaced in the log, so the log is safe to share.
+PUBLIC_HOSTS = ("login.microsoftonline.com", "login.microsoft.com", "login.live.com",
+                "accounts.google.com")
+URL_HOST_RE = re.compile(r"(https?://)([^/\s?#]+)")
+UUID_RE = re.compile(r"[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}")
+
+
+def redact(text):
+    """Remove the gateway, group, company sign-in hosts and tenant IDs from a log line."""
+    config = load_config()
+    gateway = server_host(config.get("server", "")).lower()
+
+    def host(m):
+        name = m.group(2).lower()
+        if name in PUBLIC_HOSTS:
+            return m.group(0)
+        return m.group(1) + ("<gateway>" if name == gateway else "<sign-in host>")
+
+    text = URL_HOST_RE.sub(host, text)
+    for value, label in ((config.get("server", ""), "<gateway>"), (gateway, "<gateway>"),
+                         (config.get("group", ""), "<group>")):
+        if value:
+            text = re.sub(r"(?<![\w.-])%s(?![\w-])" % re.escape(value), label, text, flags=re.I)
+    return UUID_RE.sub("<id>", text)
+
+
 def log(text):
     with open(LOG, "a") as f:
-        f.write("%s %s\n" % (datetime.now().strftime("%H:%M:%S"), text))
+        f.write("%s %s\n" % (datetime.now().strftime("%H:%M:%S"), redact(text)))
 
 
 def load_config():
@@ -196,8 +223,8 @@ def browser_login(login_url, final_url, token_cookie):
         if event != WebKit2.LoadEvent.FINISHED:
             return
         uri = view.get_uri() or ""
-        # No query string: it can carry SAML data.
-        log("page: %s [%s]" % (uri.split("?")[0], view.get_title() or ""))
+        # No query string (it can carry SAML data) and no page title (it can name the company).
+        log("page: %s" % uri.split("?")[0])
         if uri.startswith(final_url):
             cookies.get_cookies(final_url, None, got_cookies)
 
@@ -316,7 +343,7 @@ def cmd_connect():
 
     opener = new_opener()
     try:
-        log("init: server %s, group %s" % (server, group or "(default)"))
+        log("init: group %s" % ("as saved" if group else "chosen by the server"))
         root = gateway_post(opener, server, init_request(server, group))
         login = root.findtext(".//sso-v2-login")
         final = root.findtext(".//sso-v2-login-final")
@@ -327,7 +354,7 @@ def cmd_connect():
             log("init failed: " + reason)
             say("ERROR", "Sign-in not available: " + reason)
             return 1
-        log("init: tunnel group %s" % root.findtext(".//tunnel-group"))
+        log("init: SSO sign-in offered")
 
         say("STEP", "Sign in in the window that opened…")
         token = browser_login(login, final, token_cookie)

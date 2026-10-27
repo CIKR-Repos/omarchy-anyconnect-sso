@@ -68,7 +68,9 @@ omarchy-shell cikr-repos.anyconnect-sso status
 
 The VPN session cookie is passed to NetworkManager through a pipe and is never
 saved to disk or the profile. The log records page addresses (without query
-strings) and results, never tokens or cookies.
+strings or titles) and results, never tokens or cookies. The gateway, group,
+company sign-in hosts and tenant IDs are replaced with `<gateway>`, `<group>`,
+`<sign-in host>` and `<id>`, so the log is safe to attach to a bug report.
 
 ## Limitations
 
