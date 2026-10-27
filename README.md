@@ -75,6 +75,9 @@ strings) and results, never tokens or cookies.
 - Supports SAML sign-in only. For gateways that take a username and
   password, use `networkmanager-openconnect` directly.
 - No client certificates and no HostScan / CSD posture checks.
+- The gateway's certificate must be trusted by the system (a public CA, or a
+  CA you add with `trust anchor`). The tunnel is pinned to that verified
+  certificate; self-signed gateways are refused.
 - IPv4/IPv6 routes and DNS are whatever the gateway pushes, as handled by
   NetworkManager.
 

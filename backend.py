@@ -23,6 +23,7 @@ import importlib.util
 import json
 import os
 import shutil
+import socket
 import ssl
 import subprocess
 import sys
@@ -132,8 +133,16 @@ def new_opener():
 
 
 def server_pin(server):
-    """pin-sha256 of the gateway's public key, a form OpenConnect's --servercert accepts."""
-    pem = ssl.get_server_certificate((server_host(server), 443)).encode()
+    """pin-sha256 of the gateway's public key, a form OpenConnect's --servercert accepts.
+
+    The certificate is read over a verified TLS connection (system CAs and hostname),
+    so the pin can only name a certificate the system already trusts for this gateway.
+    """
+    host, _, port = server_host(server).partition(":")
+    context = ssl.create_default_context()
+    with socket.create_connection((host, int(port or 443)), timeout=30) as sock:
+        with context.wrap_socket(sock, server_hostname=host) as tls:
+            pem = ssl.DER_cert_to_PEM_cert(tls.getpeercert(binary_form=True)).encode()
     pubkey = subprocess.run(["openssl", "x509", "-pubkey", "-noout"], input=pem,
                             capture_output=True, check=True).stdout
     der = subprocess.run(["openssl", "pkey", "-pubin", "-outform", "der"], input=pubkey,
