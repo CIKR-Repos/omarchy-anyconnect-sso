@@ -22,6 +22,7 @@ import http.cookiejar
 import importlib.util
 import json
 import os
+import re
 import shutil
 import socket
 import ssl
@@ -44,6 +45,10 @@ CONFIG = os.path.join(STATE_DIR, "config.json")
 LOG = os.path.join(STATE_DIR, "last.log")
 BROWSER_DIR = os.path.join(STATE_DIR, "browser")
 
+# host[:port][/path]. Nothing else may reach NetworkManager's comma-separated vpn.data,
+# where a stray "," could add options such as csd_wrapper (a program to run).
+SERVER_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,252})(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~-]+)*$")
+
 
 def say(kind, text):
     print(kind, text, flush=True)
@@ -63,12 +68,16 @@ def load_config():
 
 
 def normalize_server(server):
-    """Host, or host/path for gateways that pick the group by URL (vpn.example.com/Employees)."""
+    """Host, or host/path for gateways that pick the group by URL (vpn.example.com/Employees).
+
+    Returns "" for anything that isn't a plain address.
+    """
     server = server.strip()
     for prefix in ("https://", "http://"):
         if server.lower().startswith(prefix):
             server = server[len(prefix):]
-    return server.strip("/")
+    server = server.strip("/")
+    return server if SERVER_RE.match(server) else ""
 
 
 def server_host(server):
@@ -228,6 +237,10 @@ def vpn_state():
 
 
 def bring_up(server, cookie, fingerprint):
+    # One secret per line: a value with a line break could add other secrets.
+    if any(c in v for v in (cookie, fingerprint) for c in "\r\n"):
+        log("unexpected line break in the session; not starting the tunnel")
+        return False
     secrets = "vpn.secrets.cookie:%s\nvpn.secrets.gateway:%s\nvpn.secrets.gwcert:%s\n" % (cookie, server_host(server), fingerprint)
     read_fd, write_fd = os.pipe()
     os.write(write_fd, secrets.encode())
@@ -255,6 +268,9 @@ def cmd_status():
 
 def cmd_groups(server):
     server = normalize_server(server)
+    if not server:
+        print(json.dumps({"error": "Enter a server address like vpn.example.com"}))
+        return 1
     try:
         root = gateway_post(new_opener(), server, init_request(server, ""))
     except (OSError, ET.ParseError) as e:
@@ -272,7 +288,7 @@ def cmd_groups(server):
 def cmd_configure(server, group, name=""):
     server = normalize_server(server)
     if not server:
-        say("ERROR", "Enter the VPN server address")
+        say("ERROR", "Enter a server address like vpn.example.com")
         return 1
     with open(CONFIG, "w") as f:
         json.dump({"server": server, "group": group.strip(), "name": name.strip()}, f, indent=2)
@@ -286,7 +302,7 @@ def cmd_configure(server, group, name=""):
 def cmd_connect():
     open(LOG, "w").close()
     config = load_config()
-    server, group = config.get("server", ""), config.get("group", "")
+    server, group = normalize_server(config.get("server", "")), config.get("group", "")
     if not server:
         say("ERROR", "Set the VPN server in Settings first")
         return 1
@@ -329,7 +345,7 @@ def cmd_connect():
             return 1
         log("auth-reply: session granted")
         fingerprint = server_pin(server)
-    except (OSError, ET.ParseError, subprocess.CalledProcessError) as e:
+    except (OSError, ValueError, ET.ParseError, subprocess.CalledProcessError) as e:
         log("error: %s" % getattr(e, "reason", e))
         say("ERROR", "Could not talk to %s: %s" % (server, getattr(e, "reason", e)))
         return 1
@@ -345,12 +361,18 @@ def cmd_connect():
 def cmd_disconnect():
     res = nmcli("connection", "down", PROFILE)
     log("nmcli: " + (res.stdout or res.stderr).strip())
+    if res.returncode != 0 and vpn_state() != "disconnected":
+        say("ERROR", "Could not disconnect (see the log)")
+        return 1
     say("OK", "Disconnected")
     return 0
 
 
 def main(argv):
+    # The state folder holds the identity provider's sign-in cookies: owner only.
+    os.umask(0o077)
     os.makedirs(STATE_DIR, exist_ok=True)
+    os.chmod(STATE_DIR, 0o700)
     cmd, args = (argv[0] if argv else ""), argv[1:]
     if cmd == "status":
         return cmd_status()

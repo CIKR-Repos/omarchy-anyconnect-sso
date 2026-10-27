@@ -28,8 +28,8 @@ Panel {
   property string groupsError: ""
   property string groupsNote: ""
 
-  readonly property string backend: Qt.resolvedUrl("backend.py").toString().replace("file://", "")
-  readonly property string logFile: Quickshell.env("HOME") + "/.local/state/omarchy/plugins/cikr-repos.anyconnect-sso/last.log"
+  readonly property string backend: decodeURIComponent(Qt.resolvedUrl("backend.py").toString().replace("file://", ""))
+  readonly property string logFile: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/omarchy/plugins/cikr-repos.anyconnect-sso/last.log"
   readonly property bool busy: actionProc.running
   readonly property bool configured: server !== ""
   readonly property bool connected: vpnState === "connected"
@@ -109,7 +109,7 @@ Panel {
     function close(): void { root.close() }
     function toggle(): void { root.toggle() }
     function connect(): void { if (!root.connected) root.toggleVpn() }
-    function disconnect(): void { if (root.connected) root.toggleVpn() }
+    function disconnect(): void { if (root.connected || root.vpnState === "connecting") root.toggleVpn() }
     function status(): string { return root.metaText }
   }
 
